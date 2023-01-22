@@ -1,0 +1,627 @@
+/////////////////////////////////////////////////////////////
+//					Project v4	                            //
+//				Writer: Omar FARISS                        //
+/////////////////////////////////////////////////////////////
+
+import java.io.BufferedReader;
+//import java.io.File;
+//import java.io.FileInputStream;
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.UnsupportedEncodingException;
+import java.io.Writer;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
+
+public class PcapChecker{
+
+	boolean startBuildPacket = false;
+	
+	public  int parseTrace(String path) {
+
+		ProcessBuilder processBuilder = new ProcessBuilder();
+		
+		// -- Linux --
+
+		// Run a shell command
+		processBuilder.command("/bin/bash", "-c", "hexdump  -C $path | cut -c 11-59");
+		
+		//processBuilder.command("/bin/bash", "-c", "hexdump  -C '$path' | cut -c 11-59");
+		//To apply the path recieved from the user to the processBuilder.command we have to MAP a system-dependent mapping from variables to values
+		//source: https://docs.oracle.com/javase/7/docs/api/java/lang/ProcessBuilder.html
+		Map<String, String> var = processBuilder.environment();
+		var.put("path", path);
+
+		// Run a shell script
+		//processBuilder.command("path/to/hello.sh");
+
+		// -- Windows --srcIp
+
+		// Run a command
+		//processBuilder.command("cmd.exe", "/c", "dir C:\\Users\\mkyong");
+
+		// Run a bat file
+		//processBuilder.command("C:\\Users\\mkyong\\hello.bat");
+
+		try {
+
+			Process process = processBuilder.start();
+
+			StringBuilder output = new StringBuilder();
+
+			BufferedReader reader = new BufferedReader(
+					new InputStreamReader(process.getInputStream()));
+			
+			//This line was tested OK. It will be used when finishing with the basics of the program.
+						//This line will create a file called tmptrace.txt. If the file exist, it will override it.
+			Writer filewriter = new	BufferedWriter(new OutputStreamWriter(new FileOutputStream("tmptrace.txt"), "utf-8"));
+				String line;
+				while ((line = reader.readLine()) != null) {
+					output.append(line + "\n");
+					filewriter.write(line + "\n");
+				}
+				
+
+			int exitVal = process.waitFor();
+			if (exitVal == 0) {
+				System.out.println("Success!");				
+				//System.out.println(output);
+				filewriter.close();
+				process.destroy();
+				return 1;
+				//System.exit(0);
+			} else {
+				//abnormal...
+				filewriter.close();
+				return 0;
+			}
+			
+		} catch (IOException e) {
+			e.printStackTrace();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+
+		
+		return 0;
+
+		
+	}//end function parseTrace
+
+
+	/* Function */
+
+	//This function reads frim the tmptrace.txt file to return an array of the file content.
+	public  String[] loadParsedfile (String path) {
+			//List holding strings of a file
+			List<String> listOfStrings = new ArrayList<String>();
+			String[] arrayTrace = listOfStrings.toArray(new String[0]);
+			
+		
+		try {
+
+			//load data from file
+			FileReader fReader = new FileReader(path);
+
+			//Create a String to strore each char from the file
+			String str = new String();
+			char ch;
+			
+
+			//Whoule loop to read the char from file and checking for delimiter and EOF
+			while (fReader.ready()) {
+				ch = (char)fReader.read();
+
+				//check for delimiters
+				if ((ch == '\n' || ch == ' ') && str.isEmpty()==false){
+
+					//Strore each string in arraylist
+					str = str.replace("\n","");//if the str contains any '\n' remove it.
+					listOfStrings.add(str.toString());
+
+					//clearing the content of str
+					str = new String();
+					
+				}//End if
+				else if (str.isEmpty()==true && ch ==' '){
+						continue;
+						
+				}
+				//The next else if is more precised then the else. But both give the same result.
+				//else if ((str.isEmpty()==false && ch !=' ') || (str.isEmpty()==true && ch!=' ')){
+				else {
+					// appending each character to string if the
+					// current character is not delimiter
+					str += ch;
+				}//end else			
+			
+			}//End while (fReader.ready())
+
+			if (str.length() > 0){
+				//To append the last line of trings to list
+				listOfStrings.add(str.toString());
+			}//end if
+
+			//storing the data in arraylist to array
+			arrayTrace = listOfStrings.toArray(new String[0]);
+
+			//For testing porposes: Print each line of file stored in arrayTrace
+			for (String stri : arrayTrace) {
+				//System.out.println(stri);
+			}
+			
+			fReader.close();		
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		startBuildPacket = true;
+		return arrayTrace; 
+
+		
+
+	}//end function
+
+
+	/* Function */
+
+	public String[] getGlobalHeader (String[] array) {
+
+		int globalHeaderLength = 24;
+		String[] globalHeader = new String [globalHeaderLength];
+		System.arraycopy(array, 0, globalHeader, 0, globalHeader.length);
+		
+		return globalHeader;
+
+	
+	}//end function
+
+
+
+			/* Funtion */
+		public static int convertBytesToInt (String[] array) {
+			//convertBytes function
+			String hexString = new String();//the string that will hold the bytes, on the right order, to be converted.
+			//TODO: check the magic number : 0xa1b2c3d4 (identical) or 0xd4c3b2a1 (swapped)
+			//Bu default, for now,  we consider that the magic number is: 0xd4c3b2a1 (swapped)
+
+			
+			for (int i = array.length - 1; i >=0; i-- ){
+
+				hexString += array[i];
+
+			}//End for
+			 
+		
+			//System.out.println(hexString);
+			int value = Integer.parseInt(hexString,16);
+			//System.out.println(convertedHexToInt);
+
+			return value;
+		}//end function
+
+
+		
+
+			/* Funtion */
+
+		public static String[] getIpPacketSize (String[] array) {
+			// getIpPacketSize function
+			//this function takes an aray (beforePacketHeader) as argument
+			int nbBytesIpPacketSize = 4; //this variable indicate the number of bytes holding the size of an IpPacket.
+			int ipPacketSizeOffset = 8; //the position of the size of the ipPacket size in the beforePacketHeader array (we start at counting at 0).
+			String[] ipPacketSize = new String [nbBytesIpPacketSize];
+			System.arraycopy(array, ipPacketSizeOffset, ipPacketSize, 0, ipPacketSize.length);
+			
+			
+			/* 
+			for (String stri4 : ipPacketSize) {
+				System.out.println(stri4);
+			}//End for
+			*/
+
+			return ipPacketSize;
+
+		}//end function
+
+
+		/* Funtion */
+
+		public static String[] getIpPacket (String[] array, int offset) {
+			
+
+			int beforePacketHeaderLength = 16;
+			
+			/* the logic: 
+			*	1- get the full list of hexa: array
+			* 	2- read the first 16 bytes: beforePacketHeader
+			*	3- get the size og the ipPacket
+			*	4- get the full ip packet: the 16 bytes before and the ip packet.
+			*/
+			
+			String[] beforePacketHeader = new String [beforePacketHeaderLength];
+			
+			System.arraycopy(array, offset, beforePacketHeader, 0, beforePacketHeader.length);
+			/*  
+			for (String stri3 : beforePacketHeader) {
+				System.out.println(stri3);
+			}//End for
+			*/
+		
+			//getIpPacketSize to get the size of the packet from the beforePacketHeader just before the ipPacket (16 Bytes)
+			String[] ipPacketSize = getIpPacketSize (beforePacketHeader);
+		
+		
+			//Convert Bytes: The size of the IP packet.
+			int convertedHexToInt = convertBytesToInt(ipPacketSize);
+			//System.out.println(convertedHexToInt);
+			
+			//initilize a int variale that will hold the size of the ipPakcet + 16Bytes of the beforeipPacket
+			int ipPacketSizeGlobal = beforePacketHeaderLength + convertedHexToInt;
+			//this array will hold the 16bytes of the just before the Packet and the ip Packet itself.
+			String[] ipPacket = new String [ipPacketSizeGlobal];
+		
+			//Fill the array:
+			System.arraycopy(array, offset, ipPacket, 0, ipPacket.length);
+			
+			return ipPacket;
+		
+		
+		}//end function
+
+
+
+		/*Function */
+
+		public static String getPacketSrcIp (String[] array) {
+			
+			//getPacketSrcIp
+			// Get src IP address from packet:
+			int packetSrcIpSize = 4;
+			String[] packetSrcIp = new String [packetSrcIpSize];
+
+			
+			//Fill the array:
+			System.arraycopy(array, 44, packetSrcIp, 0, packetSrcIp.length);
+			
+			 
+			int ip1 = Integer.parseInt(packetSrcIp[0],16);
+			int ip2 = Integer.parseInt(packetSrcIp[1],16);
+			int ip3 = Integer.parseInt(packetSrcIp[2],16);
+			int ip4 = Integer.parseInt(packetSrcIp[3],16);
+
+			String srcIp = ip1+"."+ip2+"."+ip3+"."+ip4;
+			//System.out.println(srcIp);
+
+			return srcIp;
+
+		}//end function
+
+
+		/*Function */
+
+		public static String getPacketDstIp (String[] array) {
+
+			int packetDstIpSize = 4;
+			String[] packetDstIp = new String [packetDstIpSize];
+
+			
+			//Fill the array:
+			System.arraycopy(array, 48, packetDstIp, 0, packetDstIp.length);
+			
+			 
+			int ip1 = Integer.parseInt(packetDstIp[0],16);
+			int ip2 = Integer.parseInt(packetDstIp[1],16);
+			int ip3 = Integer.parseInt(packetDstIp[2],16);
+			int ip4 = Integer.parseInt(packetDstIp[3],16);
+
+			String dstIp = ip1+"."+ip2+"."+ip3+"."+ip4;
+			//System.out.println(dstIp);
+			return dstIp;
+
+		}//end function
+
+		/*Function */
+
+		public static String getPacketTrptProtocol (String[] array) {
+
+			//Function getPacketTrptProtocol
+			
+			String[] trptProtocol = new String[1];
+			System.arraycopy(array, 41, trptProtocol, 0, 1);
+			//System.out.println(trptProtocol[0]);
+			String tcp = "06";
+			String udp = "11";
+			String protocol = "";
+			
+			
+
+			if(trptProtocol[0].equals(tcp))
+			{
+				//System.out.println("Protocol: TCP (06)");
+				protocol = "TCP";
+			}//End if
+			if(trptProtocol[0].equals(udp))
+			{
+				//System.out.println("Protocol: UDP (17)");
+				protocol = "UDP";
+			}//End if
+			
+			return protocol;
+
+		}//end function
+
+
+		/* Funtion */
+		public static int getPacketSrcPort (String[] array) {
+
+			//Function getPacketTrptProtocol
+			
+			String hexString = new String();//the string that will hold the bytes, on the right order, to be converted.
+			String[] packetSrcPort = new String[2];
+			System.arraycopy(array, 52, packetSrcPort, 0, 2);
+			//System.out.println(trptProtocol[0]);
+			
+			hexString = packetSrcPort[0] + packetSrcPort[1];
+
+			int value = Integer.parseInt(hexString,16);
+			
+			return value;
+
+		}//end function
+
+
+		/* Funtion */
+		public static int getPacketDstPort (String[] array) {
+
+			//Function getPacketTrptProtocol
+			
+			String hexString = new String();//the string that will hold the bytes, on the right order, to be converted.
+			String[] packetDstPort = new String[2];
+			System.arraycopy(array, 54, packetDstPort, 0, 2);
+			//System.out.println(trptProtocol[0]);
+			
+			hexString = packetDstPort[0] + packetDstPort[1];
+
+			int value = Integer.parseInt(hexString,16);
+			
+			return value;
+
+		}//end function
+
+
+		/*Function */
+			//getPacketAppProtocol
+
+		public static String getPacketAppProtocol (String[] array) {
+
+			int srcPort = getPacketSrcPort(array);
+			int dstPort = getPacketDstPort(array);
+			//System.out.println(dstPort);
+			String appProtocol ="";
+			//http protocol
+			if (srcPort == 80 || dstPort==80 ){
+				appProtocol = "HTTP";
+			} else if (srcPort == 443 || dstPort==443){
+				appProtocol = "SSL/TLS(HTTPS)";
+			}else if (srcPort == 53 || dstPort==53){
+				appProtocol = "DNS";
+			}else if (srcPort == 67 || dstPort==67){
+				appProtocol = "DHCP";
+			}else if (srcPort == 68 || dstPort==68){
+				appProtocol = "DHCP";
+			}else if (srcPort == 123 || dstPort==123){
+				appProtocol = "NTP";
+			}else if (srcPort == 161 || dstPort==161){
+				appProtocol = "SNMP";
+			}else if (srcPort == 162 || dstPort==162){
+				appProtocol = "SNMP";
+			}else if (srcPort == 21 || dstPort==21){
+				appProtocol = "FTP";
+			}else if (srcPort == 23 || dstPort==23){
+				appProtocol = "TELNET";
+			}else if (srcPort == 22 || dstPort==22){
+				appProtocol = "SSH";
+			}else {
+				appProtocol = getPacketTrptProtocol(array);
+			}
+			//System.out.println(appProtocol);
+
+			return appProtocol;
+
+
+		}//end function
+
+
+
+		/* Funtion */
+			// getFilteredPacketArrayList
+			//This function is :
+				//calling is doing a for loop like the print function and  getPacketAppProtocol. then it build the arrayList for each protocol: DNS, HTTP, ...
+				//This function build a new filetered Array list for only one protocol
+				//This funciton returns the new filtered array list.
+			//this function need : packetsList and the requested protocol as arguments.
+
+		public  List<String[]> getFilteredPacketArrayList (List<String[]> arrayList, String protocol) {
+
+			List<String[]> filteredPacketsList = new ArrayList<String[]>();
+			//String requestedProtocol= "SSH";
+			int httpPacket=0;
+			for ( int k = 0; k< arrayList.size(); k++ ){
+
+				String[] packet = arrayList.get(k);
+				
+				if (getPacketAppProtocol(packet).equals(protocol)){
+					
+					//System.out.println(getPacketAppProtocol(packet));
+					filteredPacketsList.add(packet);
+					httpPacket++;
+					//System.out.println(httpPacket);
+										
+				}//End if
+				//System.out.println(getPacketAppProtocol(packet));
+
+			}//End for i
+			System.out.println(httpPacket);
+
+			return filteredPacketsList;
+
+		}//end function
+
+
+		/* Funtion */
+			// ExportPcapFile
+			//this function get FilteredPacketArrayList as an argment = the output of getFilteredPacketArrayList funciton.
+			//This funciton build the pcap file. 
+			public  void ExportPcapFile (List<String[]> arrayList, String[] globalHeader, String protocol) throws IOException, InterruptedException {
+
+				//the following line was moved to the main function
+				//List<String[]> filteredPacketArrayList = getFilteredPacketArrayList(arrayList,protocol);
+												
+				String fileteredPcapHexFile = protocol + ".txt";
+				String fileteredPcapFile = protocol + ".pcap";
+				Writer pcapHexwriter = new	BufferedWriter(new OutputStreamWriter(new FileOutputStream(fileteredPcapHexFile), "utf-8"));	
+	
+				//insert the global Header in the ".txt" file
+				for (int a=0; a<globalHeader.length; a++){
+					pcapHexwriter.write(globalHeader[a]); //
+	
+				}//End for
+				
+				//Insert the filtered packets.
+				for (int l=0; l< arrayList.size(); l++){
+					String[] filteredPacket = arrayList.get(l);
+					for (int m=0; m<filteredPacket.length; m++){
+						pcapHexwriter.write(filteredPacket[m]); //
+					
+					}//End for		
+				}//End for
+	
+	
+				pcapHexwriter.close();
+				 
+				//Convert back the filtered hexa file to binaries
+				ProcessBuilder pcapBuilder = new ProcessBuilder();
+				pcapBuilder.command("bash", "-c", "xxd -r -p $fileteredPcapHexFile > $fileteredPcapFile");
+				Map<String, String> var = pcapBuilder.environment();
+				var.put("fileteredPcapHexFile", fileteredPcapHexFile);
+				var.put("fileteredPcapFile", fileteredPcapFile);
+	
+				try {
+	
+					Process process = pcapBuilder.start();
+
+					//Destroy the process when it finishes
+					int exitVal = process.waitFor();
+					if (exitVal == 0) {		
+						process.destroy();
+
+
+					}//end if
+		
+						
+				} catch (IOException e) {
+					e.printStackTrace();
+				} 
+	
+				//delete the filtered Hex PCAP file that has .txt extension
+				File file = new File(fileteredPcapHexFile);
+				file.delete();
+			
+			
+
+
+			}//end function
+
+
+			/* Funtion */
+					//buildPacketsList: it has the list of full Ip packets: beforeHeaderPacket + Packets= 16 + Packet size.
+					//
+
+			public  List<String[]> buildPacketsList (String[] array) throws InterruptedException {
+
+					List<String[]> packetsList = new ArrayList<String[]>();
+
+					/* Funtion */
+								
+					int ipPacketOffset = 24; //At the begining, this variable has the same value as globalPacketSize
+					int index=0;		 
+					
+					//While loop to get the ipPacket on a specific offet and insert it on the packetsList
+					//while (index < packetsArray.length){
+					while (index < 4000){
+					//while (true){
+						Thread.sleep(5);
+						String[] ipPackett = getIpPacket (array, ipPacketOffset);
+						
+						if (ipPackett.length < 16) {
+								break;
+
+						} 
+						//System.out.println(ipPackett.length);
+										
+						//in this case, the convertedHexToInt is the size of the Ip packet.
+						ipPacketOffset = ipPacketOffset + ipPackett.length;
+						//System.out.println(ipPacketOffset);
+						
+						packetsList.add(ipPackett);
+						index++;
+						//System.out.println(index);
+
+					}//End while(index < packetsArray.length)
+					//System.out.println(packetsArray.length);
+
+					return packetsList;
+			
+			}//end function
+
+
+
+			/* Funtion */
+			//printPackets: it has the list of full Ip packets: beforeHeaderPacket + Packets= 16 + Packet size.
+			//this function need : packetsList as argument only.
+					
+			public  void printPackets (List<String[]> arrayList) {
+
+				//List<String[]> packetsList = new ArrayList<String[]>();
+
+					for (int i = 0; i< arrayList.size(); i++ ){
+
+						String[] filteredPacket = arrayList.get(i);
+						String srcIp = getPacketSrcIp(filteredPacket);
+						String dstIp = getPacketDstIp(filteredPacket);
+						String trptProtocol = getPacketTrptProtocol(filteredPacket);
+						int srcPort = getPacketSrcPort(filteredPacket);
+						int dstPort = getPacketDstPort(filteredPacket);
+						String appProtocol = getPacketAppProtocol(filteredPacket);
+						System.out.println("===========================================================");
+						System.out.println("index ||    IP Source    || IP Destination || Transport Protocol || Src Port || Dst Port ||  App protocol ||");
+						System.out.println(i+" || "+srcIp+" ||   "+dstIp+"   ||   "+trptProtocol+"      || " +srcPort+"      || "+dstPort+"      || "+appProtocol+"      || ");
+						System.out.println("===========================================================");
+
+
+					}//End for i
+					
+
+			}//end function
+
+
+
+					
+					
+
+
+
+
+
+
+		
+}//end Class test2}//end function
