@@ -31,7 +31,7 @@ public class mainPcapChecker{
 			 
 			while (true){
 
-				PcapAnalyser pcapAnalyser = new PcapAnalyser ();
+				PcapChecker PcapChecker = new PcapChecker ();
 			
 			 	String[] packetsArray;
 				String[] globalHeader;
@@ -55,11 +55,11 @@ public class mainPcapChecker{
 					answerL2 = scL2.nextLine();
 					//the following line was tested. Now it's commented to not override the file while adding new functionalities.
 					//parseTrace("/home/panda/Projects/java_test2/tcpdump.pcap");
-					if (pcapAnalyser.parseTrace(answerL2)==1){
+					if (PcapChecker.parseTrace(answerL2)==1){
 							System.out.println("Loading the trace....");
 						//while (true){		
 							//The loadParsedFile contains all IP Packet of the pcap trace.
-							packetsArray = pcapAnalyser.loadParsedfile ("tmptrace.txt");
+							packetsArray = PcapChecker.loadParsedfile ("tmptrace.txt");
 							//Thread.sleep(50);
 												
 							//For testing porposes: Print each line of file stored in arrayTrace
@@ -70,7 +70,7 @@ public class mainPcapChecker{
 							*/
 
 							// getGlobalHeader function.
-							globalHeader = pcapAnalyser.getGlobalHeader (packetsArray);
+							globalHeader = PcapChecker.getGlobalHeader (packetsArray);
 							/* 
 							for (String stri2 : globalHeader) {
 								System.out.println(stri2);
@@ -79,7 +79,7 @@ public class mainPcapChecker{
 
 							//Get the PAckets List: 
 						
-							packetsList = pcapAnalyser.buildPacketsList (packetsArray);
+							packetsList = PcapChecker.buildPacketsList (packetsArray);
 							//Thread.sleep(50);
 						
 						while (true) { 	
@@ -94,7 +94,7 @@ public class mainPcapChecker{
 							answerL3 = scL3.nextLine();
 							if (answerL3.equals("printAll")|| answerL3.equals("0") ){ 
 								
-								pcapAnalyser.printPackets (packetsList);						
+								PcapChecker.printPackets (packetsList);						
 								
 							} //End if (answerL3.equals("printAll")|| answerL3.equals("0") )
 							else if (answerL3.equals("filter")|| answerL3.equals("1")){
@@ -118,7 +118,7 @@ public class mainPcapChecker{
 									protocol = scL4.nextLine();
 									System.out.println("\n Your chose is \n:" + protocol);
 									//Get eh filtered Pcakp list:
-									List<String[]> filteredPacketArrayList  = pcapAnalyser.getFilteredPacketArrayList(packetsList,protocol);
+									List<String[]> filteredPacketArrayList  = PcapChecker.getFilteredPacketArrayList(packetsList,protocol);
 
 									if(!protocol.equals("quit")) { 
 
@@ -137,12 +137,12 @@ public class mainPcapChecker{
 												//Export the pacap file:								
 												//String protocol = "SSH";
 												//ExportPcapFile ( packetsList, globalHeader, protocol);
-												pcapAnalyser.ExportPcapFile ( filteredPacketArrayList, globalHeader, protocol);
+												PcapChecker.ExportPcapFile ( filteredPacketArrayList, globalHeader, protocol);
 												System.out.println("done");
 												
 											} //End if (answerL4.equals("export")|| answerL4.equals("0") )
 											else if (answerL5.equals("print")|| answerL5.equals("1")){
-												pcapAnalyser.printPackets (filteredPacketArrayList);
+												PcapChecker.printPackets (filteredPacketArrayList);
 
 
 											} //end else if
