@@ -1,0 +1,222 @@
+/////////////////////////////////////////////////////////////
+//					Project v4	                            //
+//			Writer: Omar FARISS                            //
+/////////////////////////////////////////////////////////////
+
+import java.io.FileNotFoundException;
+
+
+import java.io.IOException;
+
+
+
+import java.util.ArrayList;
+import java.util.List;
+
+import java.util.Scanner;
+
+public class mainPcapChecker{
+	
+	
+		/* Main Funtion */
+
+	    /**
+	     * @param args
+	     * @throws FileNotFoundException
+	     * @throws InterruptedException
+	     */
+	    public static void main(String[] args) throws FileNotFoundException,  IOException, InterruptedException {
+			
+			
+			 
+			while (true){
+
+				PcapAnalyser pcapAnalyser = new PcapAnalyser ();
+			
+			 	String[] packetsArray;
+				String[] globalHeader;
+				List<String[]> packetsList = new ArrayList<String[]>();
+
+				//Scanner at level 1
+				Scanner scL1 = new Scanner(System.in);
+				//Answer at Leve 1
+				String answerL1 = new String ();
+				System.out.println("===========================================================");
+				System.out.println("\n============= Welcom to this PCAP files analyser ============\n");
+				System.out.println("\n Please make your choise:\n");
+				System.out.println("\n 0) enterPcap \t:enter a pcap file get be analysed: \n");
+				System.out.println("\n 1) quit\t:enter a pcap file get be analysed: \n");
+				answerL1 = scL1.nextLine();
+				
+				if (answerL1.equals("enterPcap")|| answerL1.equals("0") ){
+					Scanner scL2 = new Scanner(System.in);
+					String answerL2 = new String ();
+					System.out.println("\n Please enter the full path of your pcap trace :\n");
+					answerL2 = scL2.nextLine();
+					//the following line was tested. Now it's commented to not override the file while adding new functionalities.
+					//parseTrace("/home/panda/Projects/java_test2/tcpdump.pcap");
+					if (pcapAnalyser.parseTrace(answerL2)==1){
+							System.out.println("Loading the trace....");
+						//while (true){		
+							//The loadParsedFile contains all IP Packet of the pcap trace.
+							packetsArray = pcapAnalyser.loadParsedfile ("tmptrace.txt");
+							//Thread.sleep(50);
+												
+							//For testing porposes: Print each line of file stored in arrayTrace
+							/* 
+							for (String stri : packetsArray) {
+								System.out.println(stri);
+							}//End for
+							*/
+
+							// getGlobalHeader function.
+							globalHeader = pcapAnalyser.getGlobalHeader (packetsArray);
+							/* 
+							for (String stri2 : globalHeader) {
+								System.out.println(stri2);
+							}//End for	
+							*/
+
+							//Get the PAckets List: 
+						
+							packetsList = pcapAnalyser.buildPacketsList (packetsArray);
+							//Thread.sleep(50);
+						
+						while (true) { 	
+							Scanner scL3 = new Scanner(System.in);
+							String answerL3 = new String ();
+											
+							System.out.println("\n Please choose one of the follwoing options: \n");
+							System.out.println("\n 0)  printAll  \t:Print all packets\n");
+							System.out.println("\n 1)  filter \t:Filter packets\n");
+							System.out.println("\n 2) quit \t:exit the curent level:\n");
+
+							answerL3 = scL3.nextLine();
+							if (answerL3.equals("printAll")|| answerL3.equals("0") ){ 
+								
+								pcapAnalyser.printPackets (packetsList);						
+								
+							} //End if (answerL3.equals("printAll")|| answerL3.equals("0") )
+							else if (answerL3.equals("filter")|| answerL3.equals("1")){
+								while (true){		
+									Scanner scL4 = new Scanner(System.in);
+									String protocol = new String ();
+									System.out.println(" \nthe Pcap file was parsed and loaded successfully !");
+									System.out.println("\n Please enter the  application protocol that you would like top filter with: \n");
+									System.out.println("\n 0)  HTTP  \t:choose HTTP protocol:\n");
+									System.out.println("\n 1)  HTTPS \t:choose HTTPS protocol:\n");
+									System.out.println("\n 2)  DNS \t:choose DNS protocol:\n");
+									System.out.println("\n 3)  DHCP \t:choose DHCP protocol:\n");
+									System.out.println("\n 4)  NTP \t:choose NTP protocol:\n");
+									System.out.println("\n 5)  SNMP \t:choose snmp protocol:\n");
+									System.out.println("\n 6)  FTP \t:choose DHCP protocol:\n");
+									System.out.println("\n 7)  TELNET \t:choose TELNET protocol:\n");
+									System.out.println("\n 8)  SSH \t:choose SSH protocol:\n");
+									System.out.println("\n 9)  TCP \t:choose TCP protocol:\n");
+									System.out.println("\n 10) UDP \t:choose UDP protocol:\n");
+									System.out.println("\n 11) quit \t:exit the curent level:\n");
+									protocol = scL4.nextLine();
+									System.out.println("\n Your chose is \n:" + protocol);
+									//Get eh filtered Pcakp list:
+									List<String[]> filteredPacketArrayList  = pcapAnalyser.getFilteredPacketArrayList(packetsList,protocol);
+
+									if(!protocol.equals("quit")) { 
+
+										while (true) {
+											Scanner scL5 = new Scanner(System.in);
+											String answerL5 = new String ();
+											
+											System.out.println("\n Please choose one of the follwoing options: \n");
+											System.out.println("\n 0)  export  \t:export all the packets  of the chosen protocol: " + protocol + " with the PCAP format :\n");
+											System.out.println("\n 1)  print \t:print all the packets of the chosen protocol :" +protocol + "\n");
+											System.out.println("\n 2) quit \t:exit the curent level:\n");
+
+											answerL5 = scL5.nextLine();
+											if (answerL5.equals("export")|| answerL5.equals("0") ){ 
+											
+												//Export the pacap file:								
+												//String protocol = "SSH";
+												//ExportPcapFile ( packetsList, globalHeader, protocol);
+												pcapAnalyser.ExportPcapFile ( filteredPacketArrayList, globalHeader, protocol);
+												System.out.println("done");
+												
+											} //End if (answerL4.equals("export")|| answerL4.equals("0") )
+											else if (answerL5.equals("print")|| answerL5.equals("1")){
+												pcapAnalyser.printPackets (filteredPacketArrayList);
+
+
+											} //end else if
+											else if (answerL5.equals("quit")|| answerL5.equals("2")) {
+
+													break;
+
+											} //end else if
+
+
+
+
+										}//End while true Level5
+
+									}//End if(!protocol.equals("quit"))
+									
+									
+									if (protocol.equals("quit")|| protocol.equals("11") ) {
+											break;
+
+									} //end if
+											
+									
+								}//End second While true Level4
+
+
+							} //end else if
+							else if (answerL3.equals("quit")|| answerL3.equals("2")) {
+
+									break;
+
+							} //end else if
+							
+
+						}//end while true Level3			
+					}//End if(parseTrace(answerL2)==1)	
+					
+				} //End if
+				if (answerL1.equals("quit")|| answerL1.equals("1") ){
+					break;
+				} //End if
+
+
+					
+
+				
+					
+
+					
+
+
+					
+
+					
+
+				
+					
+
+					
+
+					
+						
+
+					
+
+			} //End while(true)
+			
+			
+			
+
+			
+
+
+
+		} //End main
+		
+}//end Class test2}//end function
